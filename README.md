@@ -1,2 +1,2 @@
 # FrischSegre-QM
-Modeling of spin-flip Majorana transitions in the Frisch-Segre experiment using quantum mechanics
+Modeling of Majorana spin-flip transitions in the Frisch-Segre experiment using quantum mechanics
