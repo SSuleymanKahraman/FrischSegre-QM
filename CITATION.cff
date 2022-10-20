@@ -1,0 +1,34 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: >-
+  Quantum mechanical modeling of the multi-stage Stern–Gerlach experiment by Frisch and Segr`e using the von Neumann equation
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+contact:
+  - affiliation: "California Institute of Technology"
+    email: kahraman@caltech.edu
+    family-names: Kahraman
+    given-names: S. Suleyman
+year: 2022
+authors:
+  - given-names: S. Suleyman
+    family-names: Kahraman
+    email: kahraman@caltech.edu
+    affiliation: Caltech
+  - given-names: Kelvin
+    family-names: Titimbo
+    email: titimbo@caltech.edu
+    affiliation: Caltech
+  - given-names: Zhe
+    family-names: He
+    affiliation: Caltech
+  - given-names: Lihong V.
+    family-names: Wang
+    affiliation: Caltech
+url: https://github.com/SSuleymanKahraman/FrischSegre-CQD-QM
+date-released: 2022-10-20
+repository: "https://github.com/SSuleymanKahraman/FrischSegre-CQD-QM"
