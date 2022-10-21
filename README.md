@@ -4,7 +4,7 @@ Modeling of Majorana spin-flip transitions in the Frisch-Segre experiment using 
 
 # Quantum mechanical modeling of the multi-stage Stern–Gerlach experiment by Frisch and Segrè using the von Neumann equation
 
-August, 2022
+October, 2022
 
 ### Authors
 
