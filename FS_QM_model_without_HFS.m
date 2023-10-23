@@ -10,7 +10,7 @@ close all;
 % Initial state is up for exact field, down for quad app
 
 % Magnetic field: 1 exact, 2 quad
-iB = 2;
+iB = 1;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -41,17 +41,6 @@ Br = 0.42e-4;           % Remnant field (T)
 % Experimental data
 FS_Iwire = [0.010, 0.020, 0.03, 0.05, 0.10, 0.20, 0.30, 0.5];       % in (A)
 FS_data = [0.19, 6.14, 14.87, 26.68, 30.81, 26.8, 12.62, 0.1]/100;  % FS exp prob
-
-% Closed-form analytical formula from CQD
-CQD_Iwire = logspace(-2, 0, 201);
-crp = 0.054; crs = 0.80; crn = 48; cri = 0.57;
-CQD_flipProb = exp(-(sqrt((crp./CQD_Iwire).^2 + crs^2))-crn.*CQD_Iwire.^3 - cri.*CQD_Iwire);
-
-% Closed-form analytical formula from Majorana and Rabi
-G = 2*pi./(mu_0*CQD_Iwire)*Br^2 ;
-By = G*za;
-W_m = exp(-pi*za*abs(gamma_e)*By/2/vy);
-W_r = exp(-pi*za*abs(gamma_e/4)*By/2/vy)/4;
 
 % Wire currents to simulate 
 Is = FS_Iwire;
@@ -141,7 +130,7 @@ for iI = 1:length(Is)
         
         % Propagate density matrix (Runge-Kutta with 2 steps)
         rho_step = rho + dt/2 * (H*rho-rho*H)/(1i*hbar);
-        rho = rho + dt * (H*rho_step-rho_step*H)/(1i*hbar);
+        rho = rho + dt * (H_step*rho_step-rho_step*H_step)/(1i*hbar);
         
         % Record the total probability of up electron spin
         pe_up(iI,it) = rho(1,1);
@@ -168,10 +157,10 @@ rpearson = corr(p', FS_data')
 mse = sum(((p)-FS_data).^2)
 
 % String to save the results
-str = ['rhoe-' num2str(irhoe) '_B-' num2str(iB) '_' char(datetime('now','TimeZone','local','Format','yyyy-MM-dd_HH-mm-ss'))];
+str = ['rhoe-' num2str(irhoe) '_B-' num2str(iB)];
 
 % Make a folder to save the figures and results 
-datafoldername = ['Output_', mfilename];
+datafoldername = ['Output_', mfilename, '_', char(datetime('now','TimeZone','local','Format','yyyy-MM-dd_HH-mm-ss'))];
 if ~isfolder(datafoldername )
     mkdir(datafoldername );
     disp(['Output folder ' datafoldername ' created'])
@@ -193,10 +182,9 @@ print(hf,[datafoldername '/timetrace_' str '.png'],'-dpng','-painters')
 % Plot and save the curve
 hf = figure; 
 semilogx(FS_Iwire, FS_data, 'ko', 'LineWidth', 2, 'MarkerSize', 6); hold on;
-semilogx(CQD_Iwire, CQD_flipProb, '-', 'LineWidth', 1, 'Color', [0.5 0.5 0.5]);
 semilogx(Is,p,'rx', 'LineWidth', 2, 'MarkerSize', 8);
 ylim([0 1]); yticks([0 0.5 1]); yticklabels({'0','1/2','1'});
-legend('Frisch-Segre experiment', 'CQD prediction','QM result','Box','off','Location','NorthWest'); grid on;
+legend('Frisch-Segre experiment','QM simulation','Box','off','Location','NorthWest'); grid on;
 xlabel('Wire current (A)');
 ylabel('Flip probability');
 xlim([min(FS_Iwire) max(FS_Iwire)]);
@@ -209,5 +197,6 @@ print(hf,[datafoldername '/curve_' str '.png'],'-dpng','-painters')
 clear hf; 
 save([datafoldername '/workspace_' str '.mat']);
 
-copyfile([mfilename '.m'], [datafoldername '/' mfilename '_' str '.m']);
+% Save the current script
+copyfile([mfilename '.m'], [datafoldername '/executedscript.m']);
 

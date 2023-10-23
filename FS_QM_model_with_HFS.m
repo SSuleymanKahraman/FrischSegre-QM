@@ -10,8 +10,8 @@ close all;
 % Initial state is up for exact field, down for quad app
 
 % Magnetic field: 1 exact, 2 quad
-iB = 2;
-% Interaction coefficient: 1-7
+iB = 1;
+% Interaction coefficient 1-8, 1 is the correct value, 8 is no interaction
 iA = 1;
 % Nuclear density matrix: 1-20
 irhon = 1;
@@ -55,17 +55,6 @@ Br = 0.42e-4;           % Remnant field (T)
 FS_Iwire = [0.010, 0.020, 0.03, 0.05, 0.10, 0.20, 0.30, 0.5];       % in (A)
 FS_data = [0.19, 6.14, 14.87, 26.68, 30.81, 26.8, 12.62, 0.1]/100;  % FS exp prob
 
-% Closed-form analytical formula from CQD
-CQD_Iwire = logspace(-2, 0, 201);
-crp = 0.054; crs = 0.80; crn = 48; cri = 0.57;
-CQD_flipProb = exp(-(sqrt((crp./CQD_Iwire).^2 + crs^2))-crn.*CQD_Iwire.^3 - cri.*CQD_Iwire);
-
-% Closed-form analytical formula from Majorana and Rabi
-G = 2*pi./(mu_0*CQD_Iwire)*Br^2 ;
-By = G*za;
-W_m = exp(-pi*za*abs(gamma_e)*By/2/vy);
-W_r = exp(-pi*za*abs(gamma_e/4)*By/2/vy)/4;
-
 % Wire currents to simulate 
 Is = FS_Iwire;
 
@@ -84,80 +73,116 @@ rho_e_list{2} = [0 0; 0 1];
 rho_n_list{1} = eye(4)/4;
 % 4 level, iso, pure
 rho_n_list{2} = ones(4)/4;
-% 4 level, aniso, mixed
-rho_n_list{3} = (1-[3:-2:-3]/3)/2;
-rho_n_list{3} = rho_n_list{3}./ sum(rho_n_list{3});
-rho_n_list{3} = diag(rho_n_list{3});
-% 4 level, aniso, pure
-rho_n_list{4} = (1-[3:-2:-3]/3)/2;
-rho_n_list{4} = rho_n_list{4} ./ norm(rho_n_list{4});
-rho_n_list{4} = rho_n_list{4}' * rho_n_list{4};
 % 2 level, iso, mixed
-rho_n_list{5} = ([1 0 0 1])/2;
-rho_n_list{5} = rho_n_list{5}./ sum(rho_n_list{5});
-rho_n_list{5} = diag(rho_n_list{5});
+temp = ([1 0 0 1])/2;
+temp = temp./ sum(temp);
+rho_n_list{3} = diag(temp);
 % 2 level, iso, pure
-rho_n_list{6} = ([1 0 0 1])/sqrt(2);
-rho_n_list{6} = rho_n_list{6} ./ norm(rho_n_list{6});
-rho_n_list{6} = rho_n_list{6}' * rho_n_list{6};
+temp = ([1 0 0 1])/sqrt(2);
+temp = temp ./ norm(temp);
+rho_n_list{4} = temp' * temp;
+% 4 level, aniso, mixed
+temp = ((1+[-3:2:3]/3)/2).^2;
+temp = temp./ sum(temp);
+rho_n_list{5} = diag(temp);
+% 4 level, aniso, pure
+temp = (1+[-3:2:3]/3)/2;
+temp = temp ./ norm(temp);
+rho_n_list{6} = temp' * temp;
+% 4 level, aniso, mixed
+temp = ((1-[-3:2:3]/3)/2).^2;
+temp = temp./ sum(temp);
+rho_n_list{7} = diag(temp);
+% 4 level, aniso, pure
+temp = (1-[-3:2:3]/3)/2;
+temp = temp ./ norm(temp);
+rho_n_list{8} = temp' * temp;
+% 4 level, aniso, mixed
+temp = ((1+[-3:2:3]/3)/2);
+temp = temp./ sum(temp);
+rho_n_list{9} = diag(temp);
+% 4 level, aniso, pure
+temp = sqrt((1+[-3:2:3]/3)/2);
+temp = temp ./ norm(temp);
+rho_n_list{10} = temp' * temp;
+% 4 level, aniso, mixed
+temp = ((1-[-3:2:3]/3)/2);
+temp = temp./ sum(temp);
+rho_n_list{11} = diag(temp);
+% 4 level, aniso, pure
+temp = sqrt((1-[-3:2:3]/3)/2);
+temp = temp ./ norm(temp);
+rho_n_list{12} = temp' * temp;
 % 2 level, aniso, mixed
-rho_n_list{7} = diag([1/4,0,0,3/4]);
+rho_n_list{13} = diag([1,2,3,4]/10);
 % 2 level, aniso, pure
-rho_n_list{8} = [1/2,0,0,sqrt(3)/2];
-rho_n_list{8} = rho_n_list{8} ./ norm(rho_n_list{8});
-rho_n_list{8} = rho_n_list{8}' * rho_n_list{8};
+temp = sqrt([1,2,3,4])/sqrt(10);
+temp = temp ./ norm(temp);
+rho_n_list{14} = temp' * temp;
 % 2 level, aniso, mixed
-rho_n_list{9} = diag([3/4,0,0,1/4]);
+rho_n_list{15} = diag([4,3,2,1]/10);
 % 2 level, aniso, pure
-rho_n_list{10} = [sqrt(3)/2,0,0,1/2];
-rho_n_list{10} = rho_n_list{10} ./ sqrt(rho_n_list{10}*rho_n_list{10}');
-rho_n_list{10} = rho_n_list{10}' * rho_n_list{10};
+temp = sqrt([4,3,2,1])/sqrt(10);
+temp = temp ./ norm(temp);
+rho_n_list{16} = temp' * temp;
+% 4 level, aniso, mixed
+temp = (1+[-3:2:3]/sqrt(15));
+temp = temp./ sum(temp);
+rho_n_list{17} = diag(temp);
+% 4 level, aniso, pure
+temp = sqrt(1+[-3:2:3]/sqrt(15));
+temp = temp ./ norm(temp);
+rho_n_list{18} = temp' * temp;
+% 4 level, aniso, mixed
+temp = (1-[-3:2:3]/sqrt(15));
+temp = temp./ sum(temp);
+rho_n_list{19} = diag(temp);
+% 4 level, aniso, pure
+temp = sqrt(1-[-3:2:3]/sqrt(15));
+temp = temp ./ norm(temp);
+rho_n_list{20} = temp' * temp;
 % 2 level, aniso, mixed
-rho_n_list{11} = diag([1/4,0,0,3/4]);
+rho_n_list{21} = diag([1/4,0,0,3/4]);
 % 2 level, aniso, pure
-rho_n_list{12} = [1/2,0,0,sqrt(3)/2];
-rho_n_list{12} = rho_n_list{12} ./ sqrt(rho_n_list{12}*rho_n_list{12}');
-rho_n_list{12} = rho_n_list{12}' * rho_n_list{12};
+temp = [1/2,0,0,sqrt(3)/2];
+temp = temp ./ norm(temp);
+rho_n_list{22} = temp' * temp;
 % 2 level, aniso, mixed
-rho_n_list{13} = diag([2/3,0,0,1/3]);
+rho_n_list{23} = diag([3/4,0,0,1/4]);
 % 2 level, aniso, pure
-rho_n_list{14} = [sqrt(2/3),0,0,sqrt(1/3)];
-rho_n_list{14} = rho_n_list{14} ./ sqrt(rho_n_list{14}*rho_n_list{14}');
-rho_n_list{14} = rho_n_list{14}' * rho_n_list{14};
+temp = [sqrt(3)/2,0,0,1/2];
+temp = temp ./ norm(temp);
+rho_n_list{24} = temp' * temp;
 % 2 level, aniso, mixed
-rho_n_list{15} = diag([1/3,0,0,2/3]);
+rho_n_list{25} = diag([1/3,0,0,2/3]);
 % 2 level, aniso, pure
-rho_n_list{16} = [sqrt(1/3),0,0,sqrt(2/3)];
-rho_n_list{16} = rho_n_list{16} ./ sqrt(rho_n_list{16}*rho_n_list{16}');
-rho_n_list{16} = rho_n_list{16}' * rho_n_list{16};
+temp = [sqrt(1/3),0,0,sqrt(2/3)];
+temp = temp ./ norm(temp);
+rho_n_list{26} = temp' * temp;
 % 2 level, aniso, mixed
-rho_n_list{17} = diag([1,2,3,4]/10);
+rho_n_list{27} = diag([2/3,0,0,1/3]);
 % 2 level, aniso, pure
-rho_n_list{18} = sqrt([1,2,3,4])/sqrt(10);
-rho_n_list{18} = rho_n_list{18} ./ sqrt(rho_n_list{18}*rho_n_list{18}');
-rho_n_list{18} = rho_n_list{18}' * rho_n_list{18};
-% 2 level, aniso, mixed
-rho_n_list{19} = diag([4,3,2,1]/10);
-% 2 level, aniso, pure
-rho_n_list{20} = sqrt([4,3,2,1])/sqrt(10);
-rho_n_list{20} = rho_n_list{20} ./ sqrt(rho_n_list{20}*rho_n_list{20}');
-rho_n_list{20} = rho_n_list{20}' * rho_n_list{20};
+temp = [sqrt(2/3),0,0,sqrt(1/3)];
+temp = temp ./ norm(temp);
+rho_n_list{28} = temp' * temp;
 
 %%% Interaction coefficients
-% Top-hat, self-averaged 
-A_list(1) = 1/2 * (-mu_0*gamma_e*gamma_n/(pi*R^3) * hbar^2);
-% Gaussian, self-averaged 
-A_list(2) = 16/(3*pi^2) * (-mu_0*gamma_e*gamma_n/(pi*R^3) * hbar^2);
-% Hartree self-averaged 
-A_list(3) = 28.4/3 * (-mu_0*gamma_e*gamma_n/(pi*R^3) * hbar^2);
-% Top-hat, torque-averaged 
-A_list(4) = 5/16 * (-mu_0*gamma_e*gamma_n/(pi*R^3) * hbar^2);
-% Gaussian, torque-averaged 
-A_list(5) = 4/(3*pi^2) * (-mu_0*gamma_e*gamma_n/(pi*R^3) * hbar^2);
-% Hartree, torque-averaged 
-A_list(6) = 0.138 * (-mu_0*gamma_e*gamma_n/(pi*R^3) * hbar^2);
 % Experimental value at https://link.aps.org/doi/10.1103/RevModPhys.49.31
-A_list(7) = 230.8598601e6 * hbar*2*pi;
+A_list(1) = 230.8598601e6 * hbar*2*pi;
+% Top-hat, self-averaged 
+A_list(2) = 1/2 * (-mu_0*gamma_e*gamma_n/(pi*R^3) * hbar^2);
+% Gaussian, self-averaged 
+A_list(3) = 16/(3*pi^2) * (-mu_0*gamma_e*gamma_n/(pi*R^3) * hbar^2);
+% Hartree self-averaged 
+A_list(4) = 28.4/3 * (-mu_0*gamma_e*gamma_n/(pi*R^3) * hbar^2);
+% Top-hat, torque-averaged 
+A_list(5) = 5/16 * (-mu_0*gamma_e*gamma_n/(pi*R^3) * hbar^2);
+% Gaussian, torque-averaged 
+A_list(6) = 4/(3*pi^2) * (-mu_0*gamma_e*gamma_n/(pi*R^3) * hbar^2);
+% Hartree, torque-averaged 
+A_list(7) = 0.138 * (-mu_0*gamma_e*gamma_n/(pi*R^3) * hbar^2);
+% Electron only (Majorana) case
+A_list(8) = 0;
 
 % Map the chosen indices to the simulation parameters
 A = A_list(iA);
@@ -254,7 +279,7 @@ for iI = 1:length(Is)
         
         % Propagate density matrix (Runge-Kutta with 2 steps)
         rho_step = rho + dt/2 * (H*rho-rho*H)/(1i*hbar);
-        rho = rho + dt * (H*rho_step-rho_step*H)/(1i*hbar);
+        rho = rho + dt * (H_step*rho_step-rho_step*H_step)/(1i*hbar);
         
         % Record the total probability of up electron spin
         probs = diag(rho);
@@ -283,10 +308,10 @@ rpearson = corr(p', FS_data')
 mse = sum(((p)-FS_data).^2)
 
 % String to save the results
-str = ['rhon-' num2str(irhon) '_rhoe-' num2str(irhoe) '_B-' num2str(iB) '_A-' num2str(iA) '_' char(datetime('now','TimeZone','local','Format','yyyy-MM-dd_HH-mm-ss'))];
+str = ['rhon-' num2str(irhon) '_rhoe-' num2str(irhoe) '_B-' num2str(iB) '_A-' num2str(iA)];
 
 % Make a folder to save the figures and results 
-datafoldername = ['Output_', mfilename];
+datafoldername = ['Output_', mfilename, '_', char(datetime('now','TimeZone','local','Format','yyyy-MM-dd_HH-mm-ss'))];
 if ~isfolder(datafoldername )
     mkdir(datafoldername );
     disp(['Output folder ' datafoldername ' created'])
@@ -312,10 +337,9 @@ print(hf,[datafoldername '/timetrace_' str '.png'],'-dpng','-painters')
 % Plot and save the curve
 hf = figure; 
 semilogx(FS_Iwire, FS_data, 'ko', 'LineWidth', 2, 'MarkerSize', 6); hold on;
-semilogx(CQD_Iwire, CQD_flipProb, '-', 'LineWidth', 1, 'Color', [0.5 0.5 0.5]);
 semilogx(Is,p,'rx', 'LineWidth', 2, 'MarkerSize', 8);
 ylim([0 1]); yticks([0 0.5 1]); yticklabels({'0','1/2','1'});
-legend('Frisch-Segre experiment', 'CQD prediction','QM result','Box','off','Location','NorthWest'); grid on;
+legend('Frisch-Segre experiment','QM simulation','Box','off','Location','NorthWest'); grid on;
 xlabel('Wire current (A)');
 ylabel('Flip probability');
 xlim([min(FS_Iwire) max(FS_Iwire)]);
@@ -329,5 +353,5 @@ clear hf;
 save([datafoldername '/workspace_' str '.mat']);
 
 % Save the current script
-copyfile([mfilename '.m'], [datafoldername '/' mfilename '_' str '.m']);
+copyfile([mfilename '.m'], [datafoldername '/executedscript.m']);
 
