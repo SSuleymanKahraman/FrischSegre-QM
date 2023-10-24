@@ -3,7 +3,7 @@
 
 cff-version: 1.2.0
 title: >-
-  Quantum mechanical modeling of the multi-stage Stern–Gerlach experiment by Frisch and Segr`e using the von Neumann equation
+  Quantum mechanical modeling of the multi-stage Stern–Gerlach experiment conducted by Frisch and Segr`e
 message: >-
   If you use this software, please cite it using the
   metadata from this file.
@@ -13,7 +13,7 @@ contact:
     email: kahraman@caltech.edu
     family-names: Kahraman
     given-names: S. Suleyman
-year: 2022
+year: 2023
 authors:
   - given-names: S. Suleyman
     family-names: Kahraman
