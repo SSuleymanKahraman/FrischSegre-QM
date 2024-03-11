@@ -1,202 +1,214 @@
 % This solves the von Neumann equation for the Frisch-Segre experiment
 % S. Suleyman Kahraman, Kelvin Titimbo, Zhe He,  and Lihong V. Wang
 % California Institute of Technology
-% October 2022
+% March 2024
 
 clear all;
 close all;
 
+global gamma_e sigma_z sigma_y sigma_x hbar mu_0 Br v za field;
+
 %%%%%%% Choose simulation parameters here. %%%%%%%%%%%%%%%%%%%
 % Initial state is up for exact field, down for quad app
 
-% Magnetic field: 1 exact, 2 quad
-iB = 1;
+% Magnetic field: 1 exact field, 2 quadrupole approximation
+field = 1;
+% Initial electron spin state: 1 ms=-1/2, 2 ms=+1/2
+ms_initial = 1;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Constants
 hbar = 1.05457e-34;     % Reduced Planck constant (J s)
 mu_0 = 4*pi*1e-7;       % Vacuum permeability (Tm/A)
-R = 275e-12;            % van der Waals atomic radius (m) [https://periodic.lanl.gov/3.shtml]
 gamma_e = -1.76e11;     % Electron gyromagnetic ratio  (1/sT). RSU = 3.0e-10
-gamma_n = 1.25e7;       % Nuclear gyromagnetic ratio [gfactor*muB/hbar] (1/(Ts)) [http://triton.iqfr.csic.es/guide/eNMR/chem/]
-% mu_e = -9.28e-24;     % Electron magnetic moment (J/T). RSU = 3.0e-10
-% mu_n = 1.96e-27;      % Nuclear magnetic moment (J/T)  [https://www-nds.iaea.org/nuclearmoments/][https://www-nds.iaea.org/publications/indc/indc-nds-0794/]
-
-% Spin-1/2 Pauli matrices
-sigma_x = [0, 1; 1, 0];
-sigma_y = [0, -1i; 1i, 0];
-sigma_z = [1, 0; 0, -1];
-
-% 3/2 - 1/2 interaction matrix
-S_ex = sigma_x;
-S_ey = sigma_y;
-S_ez = sigma_z;
 
 % FS experimental parameters
-vy = 800;               % Atom speed (m/s)
+v = 800;                % Atom speed (m/s)
 za = 1.05e-4;           % Wire position (m)
 Br = 0.42e-4;           % Remnant field (T)
+L_IR = 17.6e-3;
 
 % Experimental data
 FS_Iwire = [0.010, 0.020, 0.03, 0.05, 0.10, 0.20, 0.30, 0.5];       % in (A)
 FS_data = [0.19, 6.14, 14.87, 26.68, 30.81, 26.8, 12.62, 0.1]/100;  % FS exp prob
 
 % Wire currents to simulate 
-Is = FS_Iwire;
+Iwire_list = FS_Iwire;
 
-% Converting operators to the tensor space
-Sigma_z = sigma_z/2;
+% Spin-1/2 Pauli matrices
+sigma_x = [0, 1; 1, 0];
+sigma_y = [0, -1i; 1i, 0];
+sigma_z = [1, 0; 0, -1];
 
-% % % Initial density matrix for electron
-% Up state
-rho_e_list{1} = [1 0; 0 0];
-% Down state
-rho_e_list{2} = [0 0; 0 1];
-
-% Map the chosen indices to the simulation parameters
-% Chooses initial eletron state according to field
-if iB == 1
-    irhoe = 2;  % Start from down spin for exact field
-else
-    irhoe = 1;  % Start from up spin for quadrupole field
+% Initial electron spin state
+if ms_initial == 1
+    rho_i = [1 0;0 0];                   % Down spin, ms = -1/2
+else 
+    rho_i = [0 0;0 1];                   % Up spin, ms = +1/2
 end
-rho_e = rho_e_list{irhoe};
-% Initial density matrix in tensor space
-rho_0 = rho_e;
 
-% Time parameters
-% Choose a small time step size if the Hamiltonian is large 
-% (Using empirically chosen value)
-dt = 1e-10; 
-% Total simulation time from start to end
-tf = 2e-5;
-% Wire location is at t=0
-t = -tf/2:dt:tf/2;
-       
-% Parameters summary
-disp('Electron only');
-disp(['irhoe -> ' num2str(irhoe)]);
-disp(['iB -> ' num2str(iB)]);
+% Flight time
+tmax = +L_IR/v/2;  % final time
+tmin = -L_IR/v/2;  % initial time
+tspan = [tmin, tmax];
 
-% Variable initializations
-pe_up = [];
-Sigma_z_t = [];
-    
 % Loop over currents
-for iI = 1:length(Is)
+for iI = 1:length(Iwire_list)
+    % Print current iteration
+    disp(['I_w = ' num2str(Iwire_list(iI))]);
+
+    % Instantaneous eigenstates at the entrance
+    Ui = instantaneousEigStates(Iwire_list(iI), tmin);
+
+    % Set initial density matrix
+    rho0 = Ui * rho_i * Ui';
+    u0 = zeros(2,4);
+    u0(:,1:2) = real(rho0);
+    u0(:,2+1:4) = imag(rho0);
     
-    % Set current 
-    I = Is(iI);
-    % Initialize density matrix
-    rho = rho_0;
-    % Calculate the null point position in flight time
-    t_NP = mu_0*I/(2*pi*Br*vy);
+    % Solve the ODE problem
+    % Other solvers such as ode23, ode45, 
+    [t,ut] = ode15s(@(t,u) VonNeumann(u, Iwire_list(iI), t), tspan, u0);
     
-    % Loop over time
-    for it = 1:length(t)
-        
-        % Coordinate
-        y = vy*t(it);
-        y_step = vy*(t(it)+dt/2);
-        
-        if iB == 1
-            % Exact field at the current coordinates
-            Bx = 0;
-            By = mu_0*I*za/(2*pi*(y^2+za^2));
-            Bz = Br - mu_0*I*y/(2*pi*(y^2+za^2));
-            % Exact field half step after the current coordinates
-            Bx_step = 0;
-            By_step = mu_0*I*za/(2*pi*(y_step^2+za^2));
-            Bz_step = Br - mu_0*I*y_step/(2*pi*(y_step^2+za^2));
-        elseif iB == 2
-            % Quadrupole field at the current coordinates
-            Bx = 0;
-            By = za*Br^2*2*pi/mu_0./I;
-            Bz = vy*Br^2*2*pi/mu_0./I*(t(it)-t_NP);
-            % Quadrupole field half step after the current coordinates
-            Bx_step = 0;
-            By_step = za*Br^2*2*pi/mu_0 ./ I;
-            Bz_step = vy*Br^2*2*pi/mu_0./I*(t(it)+dt/2-t_NP);
+    % Reshape variables from the solver into matrix
+    ut = reshape(ut,[size(ut,1) 2 4]);
+    Nt = size(ut,1);
+    
+    % Variable initialization
+    pe_flip_t = zeros(Nt,1);
+    p_inst = zeros(2,Nt);
+    rhos_inst = zeros(2,2,Nt);
+
+    % Calculate the relevant variables
+    for it = 1:Nt
+        % Complex density matrix
+        rhototal = squeeze(ut(it,1:2,1:2) + 1i * ut(it,1:2,(1+2):4));
+    
+        % Density matrix in the instantaneous eigenstate basis
+        Ut = instantaneousEigStates(Iwire_list(iI), t(it));
+        rhos_inst(:,:,it) = Ut' * rhototal * Ut;
+
+        % Measurement probabilities of each state
+        p_inst(:,it) = real(diag(rhos_inst(:,:,it)));
+
+        % Electron spin flip probability
+        if ms_initial == 1
+            pe_flip_t(it,1) = sum(p_inst(2, it));
+        else
+            pe_flip_t(it,1) = sum(p_inst(1, it));
         end
-        
-        % Hamiltonian with the external B field
-        H_e = -gamma_e*hbar/2 * (sigma_x * Bx + sigma_y * By + sigma_z * Bz);
-        H_e_step = -gamma_e*hbar/2 * (sigma_x * Bx_step + sigma_y * By_step + sigma_z * Bz_step);
-        
-        % Total Hamiltonian
-        H = H_e;
-        H_step = H_e_step;
-        
-        % Propagate density matrix (Runge-Kutta with 2 steps)
-        rho_step = rho + dt/2 * (H*rho-rho*H)/(1i*hbar);
-        rho = rho + dt * (H_step*rho_step-rho_step*H_step)/(1i*hbar);
-        
-        % Record the total probability of up electron spin
-        pe_up(iI,it) = rho(1,1);
-        
-        % Record expectation values of z projections of the spins
-        Sigma_z_t(iI,it) = trace(rho*Sigma_z);
-        
-        % trace(rho) should be 1 at all times. Otherwise reduce dt.        
+
     end
-    
-    % Average over the final region
-    p(iI) = mean(pe_up(iI,t>tf*3/8));
+    % Final flip probability 
+    pe_flip(iI,1) = real(pe_flip_t(end,1));
+
+    % Plot the evolution of the diagonal of the density matrix for a particular current
+    if iI == 5
+        figure;
+        plot(t*1e6, p_inst, 'LineWidth', 1.5)
+        xlabel('Time [us]')
+        ylabel('Population')
+        legend('Lowest energy state', 'Highest energy state', 'Location', 'West')
+        xlim(tspan.*1e6);
+    end
+
 end
 
 % R-squared
-SS_0 = sum(((FS_data) - mean((FS_data))).^2);
-SS_1 = sum(((FS_data) - (p)).^2);
-R2 = 1 - SS_1/SS_0
+SS_0 = sum((FS_data - mean(FS_data)).^2);
+SS_1 = sum((FS_data - (pe_flip)').^2);
+R2 = 1 - SS_1./SS_0;
+disp(['R^2 = ' num2str(round(1000*R2)/1000)])
 
-% Pearson correlation
-rpearson = corr(p', FS_data')
+% Analytical curve data
+Iws = 10 .^(linspace(-2,0,201));
+% delta = za*abs(gamma_e)*( 2*pi./(mu_0*Iws)*Br^2 *za)/2/v;
+Bx = 0; By = 0; Bz = 0; 
+delta = abs(gamma_e)/(2*v) * (By*za + ...
+    (By^2 + (Bz+Br)^2) * pi*za^2 ./ (mu_0*Iws) +...
+    (Bx^2+By^2)/(By^2+(Bz+Br)^2) * mu_0*Iws ./ (4*pi) );
+yNP = v * mu_0 * Iwire_list * (Br) / ( 2 * pi * v * ( (Br )^2) );
+% Majorana solution
+W_m = exp(-2*pi*delta);
+alpha = 2 * asin(exp(-pi*delta/4));
+W_r = 0.25*4*sin(alpha/2).^2.*cos(alpha/2).^6 + ...
+      0.25*6*sin(alpha/2).^4.*cos(alpha/2).^4 + ...
+      0.25*4*sin(alpha/2).^6.*cos(alpha/2).^2 + ...
+      0.25*sin(alpha/2).^8;
 
-% Mean squared error
-mse = sum(((p)-FS_data).^2)
+% Plot the curve
+figure;
+hold on;
+scatter(Iwire_list, FS_data, 'ko', 'LineWidth', 2); 
+scatter(Iwire_list, pe_flip, 72, 'rx', 'LineWidth', 2) 
+plot(Iws, W_m, '--');
+plot(Iws, W_r, 'b-');
+xlabel('Wire current [A]')
+ylabel('Flip probability')
+title(['R^2=' num2str(round(1000*R2)/1000) ' Br=' num2str(round(Br/1e-6)) 'uT v=' num2str(round(v)) 'm/s za=' num2str(round(za/1e-6)) 'um'])
+set(gca,'XScale','log')
+legend('FS data','Simulation','Majorana','Rabi','Location','NorthWest')
 
-% String to save the results
-str = ['rhoe-' num2str(irhoe) '_B-' num2str(iB)];
 
-% Make a folder to save the figures and results 
-datafoldername = ['Output_', mfilename, '_', char(datetime('now','TimeZone','local','Format','yyyy-MM-dd_HH-mm-ss'))];
-if ~isfolder(datafoldername )
-    mkdir(datafoldername );
-    disp(['Output folder ' datafoldername ' created'])
-end 
+
+function [Bt] = FSField(Iw, t)
+    global mu_0  Br v za field;
     
-% Plot and save the time trace for the final current value
-hf = figure; Iplot = 5;
-plot(vy*t/1e-3,Sigma_z_t(Iplot,:),'LineWidth',2); 
-ylabel('\boldmath$\langle \sigma_{\rm{z,e}} \rangle$','FontWeight','bold'); 
-ylim([-1/2 1/2]); xlim([vy*t(1) vy*t(end)]/1e-3);
-yticks([-1/2:1/6:1/2]); yticklabels({'-1/2','','','0','','','1/2'});
-title(['I = ' num2str(Is(Iplot)) 'A' ],'FontSize',12,'FontWeight','normal'); 
-xlabel('$y$ (mm)','FontSize',12,'FontWeight','normal'); 
-grid on;
-set(findall(hf,'-property','FontSize'),'FontSize',14) 
-set(findall(hf,'-property','Interpreter'),'Interpreter','latex') 
-print(hf,[datafoldername '/timetrace_' str '.png'],'-dpng','-painters')
+    if field == 2
+        % Null point
+        t_NP = mu_0 * Iw / ( 2 * pi * Br * v);
+        % Quadrupole field:
+        Byt = za * Br^2 * 2 * pi / (mu_0 * Iw);
+        Bzt = v * (t - t_NP) * Br^2 * 2 * pi / (mu_0 * Iw);
+        Bxt = 0 ;
+    else
+        % Exact field:
+        Byt = mu_0 * Iw / (2 * pi * (za^2 + (v * t)^2)) * za;
+        Bzt = Br - mu_0 *Iw / (2 * pi * (za^2 + (v * t)^2)) * v * t;
+        Bxt = 0 ;
+    end
+    Bt = [Bxt;Byt;Bzt];
+end
 
-% Plot and save the curve
-hf = figure; 
-semilogx(FS_Iwire, FS_data, 'ko', 'LineWidth', 2, 'MarkerSize', 6); hold on;
-semilogx(Is,p,'rx', 'LineWidth', 2, 'MarkerSize', 8);
-ylim([0 1]); yticks([0 0.5 1]); yticklabels({'0','1/2','1'});
-legend('Frisch-Segre experiment','QM simulation','Box','off','Location','NorthWest'); grid on;
-xlabel('Wire current (A)');
-ylabel('Flip probability');
-xlim([min(FS_Iwire) max(FS_Iwire)]);
 
-set(findall(hf,'-property','FontSize'),'FontSize',14) 
-set(findall(hf,'-property','Interpreter'),'Interpreter','latex') 
-print(hf,[datafoldername '/curve_' str '.png'],'-dpng','-painters')
+% Defnining the differential equation for the solver
+function du = VonNeumann(u, Iw, t)
+    % u[:,1:2 ]: real(rhoe)
+    % u[:,2+1:4]: imag(rhoe)
+    
+    global hbar;
+    
+    Bt = FSField(Iw,t);
 
-% Save the workspace
-clear hf; 
-save([datafoldername '/workspace_' str '.mat']);
+    H = Hamiltonian(Bt);
 
-% Save the current script
-copyfile([mfilename '.m'], [datafoldername '/executedscript.m']);
+    u = reshape(u,[2,4]);
+    
+    % von Neumann equation
+    % du = (H*u - u*H) ./ (1i*hbar);
+    term1real = real(H) * u(:,1:2 ) - imag(H) * u(:,2+1:4);
+    term2real = u(:,1:2 ) * real(H) - u(:,2+1:4) * imag(H);
+    term1comp = imag(H) * u(:,1:2 ) + real(H) * u(:,2+1:4);
+    term2comp = u(:,2+1:4) * real(H) + u(:,1:2 ) * imag(H);
+    totalreal =  (term1comp - term2comp) ./ (hbar); 
+    totalcomp = -(term1real - term2real) ./ (hbar); 
+    du(:,1:2 ) = totalreal;
+    du(:,2+1:4) = totalcomp;
+    
+    du = du(:);
+end
 
+function H = Hamiltonian(Bt)
+    global hbar gamma_e sigma_z sigma_y sigma_x;
+
+    % Hamiltonian with the external B field
+    H = -gamma_e * hbar / 2 * (sigma_x * Bt(1) + sigma_y * Bt(2) + sigma_z * Bt(3));
+end
+
+function U = instantaneousEigStates(Iw, t)
+    [U,~] = eig(Hamiltonian(FSField(Iw, t)));
+    for i = 1:size(U,2)
+        U(:,i) = U(:,i) ./ norm(U(:,i));
+    end
+end
